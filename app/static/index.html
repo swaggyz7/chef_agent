@@ -45,7 +45,7 @@
             <span>图片存储</span>
             <span class="status-dot" id="ossStatus">检测中</span>
           </div>
-          <p>API Key 为空时，页面仍可启动；填写 <code>.env</code> 后即可对话和上传 OSS。</p>
+          <p>长期记忆默认关闭，只有明确同意后才会保存固定类别的口味偏好。</p>
         </section>
       </aside>
 
@@ -55,9 +55,13 @@
             <p class="eyebrow">PRIVATE KITCHEN</p>
             <h1>今天想做什么菜？</h1>
           </div>
-          <button class="ghost-button" id="clearButton" type="button" title="清空当前会话">
-            清空会话
-          </button>
+          <div class="header-actions">
+            <span class="memory-indicator" id="memoryIndicator">长期记忆：关闭</span>
+            <button class="ghost-button" id="memoryButton" type="button">个性化</button>
+            <button class="ghost-button" id="clearButton" type="button" title="清空当前会话">
+              清空会话
+            </button>
+          </div>
         </header>
 
         <section class="messages" id="messages" aria-live="polite">
@@ -109,6 +113,77 @@
           <p class="composer-hint">小厨会优先联网搜索菜谱；搜索结果不足时，再提供创意搭配建议。</p>
         </footer>
       </main>
+    </div>
+
+
+    <div class="modal-backdrop" id="memoryModal" hidden>
+      <section class="memory-modal" role="dialog" aria-modal="true" aria-labelledby="memoryTitle">
+        <header class="modal-header">
+          <div>
+            <p class="eyebrow">PRIVACY FIRST</p>
+            <h2 id="memoryTitle">长期口味记忆</h2>
+          </div>
+          <button class="modal-close" id="closeMemoryModal" type="button" aria-label="关闭">×</button>
+        </header>
+
+        <div class="privacy-note">
+          <strong>默认关闭，同意后才记录</strong>
+          <p>仅保存你主动填写或在对话中明确要求记住的饮食口味。不要输入姓名、电话、邮箱、账号、精确位置、疾病、健康、宗教或政治信息。</p>
+        </div>
+
+        <div class="context-card">
+          <span>匿名 Context ID</span>
+          <code id="memoryContextId"></code>
+          <small>该 ID 仅用于隔离你的会话和偏好，不是登录账号。</small>
+        </div>
+
+        <section class="memory-section">
+          <div class="memory-section-title">
+            <div>
+              <strong>授权状态</strong>
+              <span id="memoryConsentText">尚未开启</span>
+            </div>
+            <button class="primary-small-button" id="toggleMemoryConsent" type="button">开启长期记忆</button>
+          </div>
+          <label class="consent-checkbox">
+            <input id="memoryConsentCheckbox" type="checkbox" />
+            <span>我已阅读并同意将上述匿名口味偏好用于个性化食谱推荐，并可随时撤回或删除。</span>
+          </label>
+        </section>
+
+        <section class="memory-section">
+          <div class="memory-section-title">
+            <div>
+              <strong>我的口味偏好</strong>
+              <span>只用于食谱排序，不用于广告或用户画像</span>
+            </div>
+          </div>
+
+          <form class="memory-form" id="memoryPreferenceForm">
+            <select id="memoryCategory" aria-label="偏好类别">
+              <option value="flavor">口味</option>
+              <option value="spicy_level">辣度</option>
+              <option value="cuisine">菜系</option>
+              <option value="liked_ingredient">偏好食材</option>
+              <option value="disliked_ingredient">避免的食材</option>
+              <option value="dietary_style">饮食风格</option>
+              <option value="cooking_style">烹饪方式</option>
+              <option value="meal_preference">餐食偏好</option>
+            </select>
+            <input id="memoryValue" maxlength="60" placeholder="例如：清淡、少油、喜欢菌菇" />
+            <button type="submit">添加</button>
+          </form>
+
+          <div class="memory-list" id="memoryList">
+            <p class="empty-memory">开启长期记忆后，可以在这里添加或查看偏好。</p>
+          </div>
+        </section>
+
+        <footer class="modal-footer">
+          <button class="ghost-button" id="exportMemory" type="button">导出 JSON</button>
+          <button class="danger-button" id="deleteMemory" type="button">彻底删除我的记忆</button>
+        </footer>
+      </section>
     </div>
 
     <script src="/static/app.js" defer></script>

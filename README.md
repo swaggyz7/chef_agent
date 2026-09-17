@@ -13,11 +13,33 @@
 - **联网搜索**：优先通过 Tavily 搜索真实菜谱，减少模型凭空生成。
 - **智能排序**：按营养价值与制作难度综合评分，简单且营养丰富的菜谱优先。
 - **创意搭配**：搜索不到合适菜谱时，由模型给出创意组合建议。
-- **多轮记忆**：使用 SQLite Checkpointer 按 `thread_id` 保存和恢复会话。
+- **多轮记忆**：使用 SQLite Checkpointer，按匿名 `context_id` 和 `thread_id` 隔离并恢复会话。
 - **流式输出**：FastAPI 将模型回答实时流式返回前端。
 - **图片直传**：配置 OSS 后，浏览器使用预签名 URL 直传图片，文件不经过后端服务器。
 - **本地降级**：OSS 未配置时自动使用本地上传，方便先开发页面和调试流程。
 - **配置容错**：API Key 为空时服务仍可启动，并在对话时返回明确提示。
+
+## 可选长期口味记忆
+
+长期记忆默认关闭。用户必须在页面中阅读说明并明确同意后，系统才会记录固定类别的口味偏好，并把它作为后续食谱排序的辅助上下文。
+
+支持保存的类别：辣度、口味、菜系、偏好食材、不喜欢或避免的食材、饮食风格、烹饪方式和餐食偏好。系统不会自动从照片中推断偏好，也不会主动保存姓名、联系方式、健康、宗教等敏感信息。
+
+只有用户明确表达“记住”“以后都……”等持久化意图时，Agent 才允许调用长期记忆工具。用户每次对话中的明确要求始终优先于长期偏好。
+
+用户可以在“个性化”面板中查看、添加、逐条删除、导出 JSON、撤回同意或彻底删除全部长期记忆。详细说明见 [PRIVACY.md](./PRIVACY.md)。
+
+长期记忆 API：
+
+- `GET /api/v1/memory/policy`：查看当前同意版本和政策摘要
+- `GET /api/v1/memory/profile`：查看授权状态和偏好
+- `PUT /api/v1/memory/consent`：开启或撤回同意
+- `POST /api/v1/memory/preferences`：主动添加偏好
+- `DELETE /api/v1/memory/preferences/{id}`：删除单条偏好
+- `GET /api/v1/memory/export`：导出用户数据
+- `DELETE /api/v1/memory/profile`：彻底删除同意和全部偏好
+
+> 说明：当前实现提供 consent-first、目的限定、数据最小化和用户数据权利控制，但不等同于法律合规认证。正式上线前仍需结合部署地区、模型供应商和数据存储位置进行合规评审。
 
 ## 技术栈
 
@@ -73,18 +95,22 @@ chef_agent/
 │   │   └── schemas.py                  # Pydantic 请求/响应模型
 │   ├── common/
 │   │   └── logger.py                   # 日志配置
+│   ├── memory/
+│   │   └── store.py                    # 可选长期口味记忆与同意记录
 │   └── static/
-│       ├── index.html                  # 聊天页面
+│       ├── index.html                  # 聊天页面与隐私设置面板
 │       ├── styles.css                  # 页面样式
-│       ├── app.js                      # 上传、流式对话和消息渲染
+│       ├── app.js                      # 上传、流式对话和长期记忆交互
 │       └── uploads/                    # 本地开发上传目录
 ├── db/
-│   └── personal_chief.db               # 首次运行后自动生成
+│   ├── personal_chief.db               # 会话 Checkpoint，自动生成
+│   └── user_memory.db                  # 长期记忆，自动生成且默认不启用
 ├── chef_agent.py                       # 兼容的命令行入口
 ├── langgraph.json                      # LangGraph 开发配置
 ├── pyproject.toml                      # uv / Python 项目配置
 ├── requirements.txt                    # pip 依赖清单
 ├── .env.example                        # 环境变量模板
+├── PRIVACY.md                          # 隐私与长期记忆说明
 └── README.md
 ```
 
@@ -169,6 +195,7 @@ OSS_PUBLIC_BASE_URL=
 | `OSS_REGION` | 否 | 默认 `cn-hangzhou` |
 | `OSS_ENDPOINT` | 否 | 默认 `oss-cn-hangzhou.aliyuncs.com` |
 | `OSS_PUBLIC_BASE_URL` | 否 | 自定义域名或 CDN 地址 |
+| `MEMORY_DB_PATH` | 否 | 长期记忆数据库路径，默认 `db/user_memory.db` |
 
 ### 3. 启动 FastAPI 服务
 
@@ -211,7 +238,9 @@ Content-Type: application/json
 {
   "message": "冰箱里有鸡蛋、西红柿和青椒，推荐 3 道菜",
   "image_url": null,
-  "thread_id": "demo-thread"
+  "context_id": "demo-context-001",
+  "thread_id": "demo-thread",
+  "use_memory": false
 }
 ```
 
@@ -221,7 +250,9 @@ Content-Type: application/json
 {
   "message": "帮我看看这些食材能做什么",
   "image_url": "https://your-bucket.oss-cn-hangzhou.aliyuncs.com/recipes/xxx.jpg",
-  "thread_id": "demo-thread"
+  "context_id": "demo-context-001",
+  "thread_id": "demo-thread",
+  "use_memory": false
 }
 ```
 
@@ -230,7 +261,7 @@ Content-Type: application/json
 ### 获取历史消息
 
 ```http
-GET /api/v1/chat/messages?thread_id=demo-thread
+GET /api/v1/chat/messages?context_id=demo-context-001&thread_id=demo-thread
 ```
 
 响应示例：
@@ -255,7 +286,7 @@ GET /api/v1/chat/messages?thread_id=demo-thread
 ### 清空历史消息
 
 ```http
-DELETE /api/v1/chat/messages?thread_id=demo-thread
+DELETE /api/v1/chat/messages?context_id=demo-context-001&thread_id=demo-thread
 ```
 
 响应示例：
@@ -459,17 +490,18 @@ HumanMessage(
 
 ### 会话记忆
 
-使用 `thread_id` 隔离不同会话：
+请求使用匿名 `context_id` 和会话 `thread_id` 组合隔离历史：
 
 ```python
+storage_thread_id = scoped_thread_id("demo-context-001", "demo-thread")
 config = {
     "configurable": {
-        "thread_id": "demo-thread"
+        "thread_id": storage_thread_id
     }
 }
 ```
 
-相同的 `thread_id` 会恢复相同会话的历史消息；清空会话会删除对应线程的 Checkpoint。
+相同的 `context_id` 与 `thread_id` 会恢复同一会话；清空会话只删除对应组合下的 Checkpoint，不会删除长期口味记忆。
 
 ## 常见问题
 

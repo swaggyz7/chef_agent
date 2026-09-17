@@ -1,7 +1,9 @@
 """FastAPI 请求与响应数据模型。"""
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+CONTEXT_ID_PATTERN = r"^[A-Za-z0-9_-]{8,128}$"
 
 
 class ChatRequest(BaseModel):
@@ -9,7 +11,9 @@ class ChatRequest(BaseModel):
 
     message: str = Field(min_length=1, max_length=8000)
     image_url: str | None = Field(default=None, max_length=4000)
+    context_id: str = Field(min_length=8, max_length=128, pattern=CONTEXT_ID_PATTERN)
     thread_id: str = Field(default="default", min_length=1, max_length=128)
+    use_memory: bool = False
 
 
 class ChatMessage(BaseModel):
@@ -24,14 +28,6 @@ class ChatHistoryResponse(BaseModel):
     """会话历史响应。"""
 
     messages: list[ChatMessage]
-
-
-class SourceItem(BaseModel):
-    """菜谱参考来源。"""
-
-    title: str = ""
-    url: str = ""
-    content: str = ""
 
 
 class PresignRequest(BaseModel):
@@ -74,3 +70,73 @@ class RuntimeStatusResponse(BaseModel):
     oss_configured: bool
     model: str
     database: str
+
+
+class MemoryPolicyResponse(BaseModel):
+    """长期记忆隐私政策摘要。"""
+
+    consent_version: str
+    default_enabled: bool = False
+    purpose: str
+    allowed_categories: dict[str, str]
+    retention: str
+    user_rights: list[str]
+
+
+class MemoryConsentRequest(BaseModel):
+    """开启或关闭长期记忆。"""
+
+    context_id: str = Field(min_length=8, max_length=128, pattern=CONTEXT_ID_PATTERN)
+    enabled: bool
+    consent_version: str
+
+
+class MemoryPreferenceCreate(BaseModel):
+    """用户主动添加一条口味偏好。"""
+
+    context_id: str = Field(min_length=8, max_length=128, pattern=CONTEXT_ID_PATTERN)
+    category: str = Field(min_length=1, max_length=40)
+    value: str = Field(min_length=1, max_length=60)
+
+
+class MemoryPreference(BaseModel):
+    """长期口味偏好。"""
+
+    id: int
+    context_id: str
+    category: str
+    category_label: str
+    value: str
+    source: str
+    source_label: str
+    created_at: str
+    updated_at: str
+
+
+class MemoryProfileResponse(BaseModel):
+    """长期记忆配置和偏好列表。"""
+
+    context_id: str
+    memory_enabled: bool
+    consent_version: str | None = None
+    consented_at: str | None = None
+    updated_at: str | None = None
+    preferences: list[MemoryPreference] = Field(default_factory=list)
+    preference_count: int = 0
+
+
+class MemoryExportResponse(BaseModel):
+    """用户数据导出。"""
+
+    exported_at: str
+    format_version: str
+    consent_version: str
+    profile: dict[str, Any]
+
+
+class MemoryDeleteResponse(BaseModel):
+    """长期记忆删除结果。"""
+
+    success: bool = True
+    deleted_preferences: int = 0
+    deleted_consents: int = 0

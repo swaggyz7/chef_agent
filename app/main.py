@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.agents.personal_chief import runtime_status
-from app.api.v1 import chat, oss
+from app.api.v1 import chat, memory, oss
 from app.common.logger import setup_logging
 from app.models.schemas import RuntimeStatusResponse
 
@@ -18,8 +18,8 @@ STATIC_DIR = PROJECT_ROOT / "app" / "static"
 
 app = FastAPI(
     title="Personal Chief API",
-    description="私厨：支持图片识别、联网搜索菜谱和多轮对话。",
-    version="0.1.0",
+    description="私厨：支持图片识别、联网搜索菜谱、多轮对话和可选长期口味记忆。",
+    version="0.2.0",
 )
 
 app.add_middleware(
@@ -32,6 +32,7 @@ app.add_middleware(
 
 app.include_router(chat.router, prefix="/api/v1")
 app.include_router(oss.router, prefix="/api/v1")
+app.include_router(memory.router, prefix="/api/v1")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
