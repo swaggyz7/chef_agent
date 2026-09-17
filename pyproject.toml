@@ -1,0 +1,36 @@
+[project]
+name = "food-recipe-recommender"
+version = "0.1.0"
+description = "AI-powered recipe recommender based on uploaded food images"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "langchain>=1.0.0",
+  "langchain-community>=0.3.0",
+  "langchain-openai>=0.3.0",
+  "langchain-core>=1.0.0",
+  "streamlit>=1.40.0",
+  "pillow>=11.0.0",
+  "python-dotenv>=1.0.0",
+  "tavily-python>=0.5.0",
+  "langchain-tavily>=0.1.0",
+  "fastapi>=0.109.0",
+  "uvicorn>=0.27.0",
+  "python-multipart>=0.0.6",
+  "alibabacloud-oss-v2>=1.2.4",
+  "langgraph>=1.0.0",
+  "langgraph-checkpoint-sqlite>=3.0.3",
+]
+
+[tool.uv]
+dev-dependencies = [
+  "pytest>=8.0.0",
+  "black>=24.0.0",
+  "langgraph-cli[inmem]>=0.2.0",
+]
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]

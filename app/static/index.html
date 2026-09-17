@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f1e8" />
+    <title>小厨 · AI 私厨管家</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">厨</div>
+          <div>
+            <strong>小厨</strong>
+            <span>AI 私厨管家</span>
+          </div>
+        </div>
+
+        <section class="sidebar-section">
+          <p class="eyebrow">今天吃什么</p>
+          <h2>把冰箱里的食材，变成一顿好饭。</h2>
+          <p class="muted">上传照片或直接输入清单，小厨会完成识别、搜索、评分和排序。</p>
+        </section>
+
+        <section class="sidebar-section">
+          <div class="section-title">
+            <span>快速灵感</span>
+            <span class="section-line"></span>
+          </div>
+          <div class="ingredient-cloud" id="ingredientCloud">
+            <button type="button" data-prompt="冰箱里有鸡蛋、西红柿、青椒和鸡胸肉，帮我推荐 3 道菜。">鸡蛋 · 西红柿</button>
+            <button type="button" data-prompt="我有西兰花、蘑菇、胡萝卜和三文鱼，想做营养均衡的晚餐。">三文鱼 · 西兰花</button>
+            <button type="button" data-prompt="手头只有土豆、洋葱和牛肉，帮我做简单一点的菜。">土豆 · 洋葱 · 牛肉</button>
+          </div>
+        </section>
+
+        <section class="sidebar-section config-card">
+          <div class="config-row">
+            <span>模型服务</span>
+            <span class="status-dot" id="modelStatus">检测中</span>
+          </div>
+          <div class="config-row">
+            <span>图片存储</span>
+            <span class="status-dot" id="ossStatus">检测中</span>
+          </div>
+          <p>API Key 为空时，页面仍可启动；填写 <code>.env</code> 后即可对话和上传 OSS。</p>
+        </section>
+      </aside>
+
+      <main class="chat-panel">
+        <header class="chat-header">
+          <div>
+            <p class="eyebrow">PRIVATE KITCHEN</p>
+            <h1>今天想做什么菜？</h1>
+          </div>
+          <button class="ghost-button" id="clearButton" type="button" title="清空当前会话">
+            清空会话
+          </button>
+        </header>
+
+        <section class="messages" id="messages" aria-live="polite">
+          <article class="message assistant">
+            <div class="avatar">厨</div>
+            <div class="bubble">
+              <p>你好，我是小厨。</p>
+              <p>拍一张冰箱或厨房台面的照片，也可以直接告诉我手头有哪些食材。我会结合营养价值和制作难度，帮你选出最合适的菜谱。</p>
+              <div class="sample-actions">
+                <button type="button" data-prompt="冰箱里有鸡蛋、西红柿、青椒和鸡胸肉，帮我看看能做些什么？">上传示例后开始</button>
+                <button type="button" data-prompt="我想吃清淡高蛋白的晚餐，现有鸡胸肉、西兰花、蘑菇和胡萝卜。">填写食材清单</button>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <footer class="composer-wrap">
+          <div class="upload-preview" id="uploadPreview" hidden>
+            <img id="previewImage" alt="待上传食材预览" />
+            <div>
+              <strong id="previewName">食材照片</strong>
+              <span>发送时会先上传图片，再交给模型识别。</span>
+            </div>
+            <button type="button" id="removeImage" aria-label="移除图片">×</button>
+          </div>
+
+          <form class="composer" id="chatForm">
+            <label class="upload-button" for="imageInput" title="上传食材图片">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h2l1.2-1.8h4.6L15.5 5h2A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5v-9Z" />
+                <circle cx="12" cy="12" r="3.5" />
+              </svg>
+              <input id="imageInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+            </label>
+            <textarea
+              id="messageInput"
+              rows="1"
+              maxlength="8000"
+              placeholder="例如：冰箱里有西红柿、鸡蛋和蘑菇，晚餐做什么？"
+              aria-label="输入食材或问题"
+            ></textarea>
+            <button class="send-button" id="sendButton" type="submit">
+              <span>发送</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m4 12 16-8-5.5 16-3-6.5L4 12Z" />
+              </svg>
+            </button>
+          </form>
+          <p class="composer-hint">小厨会优先联网搜索菜谱；搜索结果不足时，再提供创意搭配建议。</p>
+        </footer>
+      </main>
+    </div>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
