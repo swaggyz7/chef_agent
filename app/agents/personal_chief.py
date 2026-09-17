@@ -1,6 +1,7 @@
 """AI 私厨核心 Agent：多模态模型 + 搜索 + 会话记忆 + 可选长期口味记忆。"""
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 from contextvars import ContextVar
@@ -18,6 +19,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 
 from app.common.logger import logger
 from app.memory.store import CONSENT_VERSION, MemoryConsentError, memory_store
+from app.rag.local_dish_graph import dish_graph
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_DIR = PROJECT_ROOT / "db"
@@ -105,6 +107,29 @@ def remember_taste_preference(category: str, value: str) -> str:
     )
 
 
+
+@tool
+def search_dish_knowledge(query: str, top_k: int = 5) -> str:
+    """检索本地菜品图谱。query 填食材、口味、菜系或饮食目标，返回最相关的本地菜品。"""
+    try:
+        results = dish_graph.search(query, top_k=top_k)
+    except ValueError as error:
+        return f"本地菜品图谱检索失败：{error}"
+    return json.dumps(
+        {"query": query, "results": results},
+        ensure_ascii=False,
+    )
+
+
+@tool
+def get_dish_graph(dish_name: str) -> str:
+    """按菜名读取本地菜品图谱，包括食材、口味、烹饪方式和相关菜品。"""
+    try:
+        result = dish_graph.get_dish_by_name(dish_name)
+    except ValueError as error:
+        return f"本地菜品图谱查询失败：{error}"
+    return json.dumps(result, ensure_ascii=False)
+
 system_prompt = """
 你是一名私人厨师。收到用户提供的食材照片或清单后，请按以下流程操作：
 1.识别和评估食材：若用户提供照片，首先辨识所有可见食材。基于食材的外观状态，评估其新鲜度与可用量，整理出一份“当前可用食材清单”。
@@ -112,7 +137,7 @@ system_prompt = """
 3.多维度评估与排序：从营养价值和制作难度两个维度对检索到的候选食谱进行量化打分，并根据得分排序，制作简单且营养丰富的排名靠前。
 4.结构化方案输出：把排序后的食谱整理为一份结构清晰的建议报告，要包含食谱信息、得分、推荐理由、食谱的参考图片，帮助用户快速做出决策。
 
-请严格按照流程，优先调用 web_search 工具搜索食谱，搜索不到的情况下才能自己发挥。
+请先调用 search_dish_knowledge 检索本地菜品图谱；本地结果不足时，再调用 web_search 补充。两者都没有合适结果时，才可以自行发挥。
 
 【长期记忆规则】
 只有用户完成明确授权后，才可以使用长期口味偏好进行个性化推荐。
@@ -129,7 +154,7 @@ checkpointer.setup()
 
 agent = create_agent(
     model=model,
-    tools=[tavily, remember_taste_preference],
+    tools=[search_dish_knowledge, get_dish_graph, tavily, remember_taste_preference],
     checkpointer=checkpointer,
     system_prompt=system_prompt,
 )
@@ -214,7 +239,7 @@ async def search_recipes(
     request_agent = (
         create_agent(
             model=model,
-            tools=[tavily, remember_taste_preference],
+            tools=[search_dish_knowledge, get_dish_graph, tavily, remember_taste_preference],
             checkpointer=checkpointer,
             system_prompt=request_system_prompt,
         )

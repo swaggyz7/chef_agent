@@ -20,3 +20,7 @@ chef_memory.db
 *.log
 .idea/
 .vscode/
+
+# Local secrets and private configuration notes
+API_CONFIG.local.md
+*.local.env

@@ -24,6 +24,7 @@ const previewName = document.querySelector("#previewName");
 const removeImageButton = document.querySelector("#removeImage");
 const modelStatus = document.querySelector("#modelStatus");
 const ossStatus = document.querySelector("#ossStatus");
+const knowledgeStatus = document.querySelector("#knowledgeStatus");
 
 let selectedFile = null;
 let selectedPreviewUrl = "";
@@ -418,6 +419,19 @@ function setMemoryIndicator(enabled) {
   memoryIndicator.className = enabled ? "memory-indicator active" : "memory-indicator";
 }
 
+async function loadKnowledgeStatus() {
+  try {
+    const response = await fetch("/api/v1/knowledge/stats");
+    if (!response.ok) throw new Error("knowledge stats failed");
+    const data = await response.json();
+    knowledgeStatus.textContent = data.dish_count + " 道菜";
+    knowledgeStatus.className = "status-dot ok";
+  } catch (error) {
+    knowledgeStatus.textContent = "不可用";
+    knowledgeStatus.className = "status-dot warn";
+  }
+}
+
 async function loadMemoryPolicy() {
   try {
     const response = await fetch("/api/v1/memory/policy");
@@ -633,6 +647,7 @@ deleteMemory.addEventListener("click", deleteMemoryProfile);
 exportMemory.addEventListener("click", exportMemoryProfile);
 
 loadRuntimeStatus();
+loadKnowledgeStatus();
 loadMemoryPolicy();
 loadMemoryProfile();
 loadHistory();

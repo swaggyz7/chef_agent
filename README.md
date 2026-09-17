@@ -10,7 +10,8 @@
 
 - **图片识别**：上传冰箱或厨房照片，模型自动识别可见食材。
 - **文本对话**：没有图片时，可直接输入“鸡胸肉、西兰花、蘑菇”等食材清单。
-- **联网搜索**：优先通过 Tavily 搜索真实菜谱，减少模型凭空生成。
+- **本地 RAG**：SQLite 菜品图谱向量检索，默认内置 8 道演示菜，不依赖外部向量服务。
+- **联网搜索**：本地图谱结果不足时，再通过 Tavily 搜索真实菜谱。
 - **智能排序**：按营养价值与制作难度综合评分，简单且营养丰富的菜谱优先。
 - **创意搭配**：搜索不到合适菜谱时，由模型给出创意组合建议。
 - **多轮记忆**：使用 SQLite Checkpointer，按匿名 `context_id` 和 `thread_id` 隔离并恢复会话。
@@ -41,13 +42,35 @@
 
 > 说明：当前实现提供 consent-first、目的限定、数据最小化和用户数据权利控制，但不等同于法律合规认证。正式上线前仍需结合部署地区、模型供应商和数据存储位置进行合规评审。
 
+## 本地菜品图谱 RAG
+
+项目内置一个轻量本地知识库，使用 SQLite 同时保存菜品节点、关系边和向量：
+
+- `dish_nodes`：菜品名称、菜系、食材、口味、烹饪方式、饮食标签和说明。
+- `dish_edges`：菜品到食材、口味、烹饪方式、饮食标签的图谱关系。
+- `dish_vectors`：每道菜的 384 维 float32 本地向量 BLOB。
+
+本地向量由字符 n-gram 哈希生成，不需要调用 Embedding API，也不需要下载大模型。检索时先做余弦相似度召回，再结合图谱共享关系和相关菜品进行展示。演示库默认包含 8 道常见菜，适合练习，不包含大规模菜品数据。
+
+后续如果要做生产化升级，可以在保持现有 API 的情况下把存储替换为 `sqlite-vec`、PostgreSQL + `pgvector` 或独立向量数据库。
+
+知识库接口：
+
+- `GET /api/v1/knowledge/stats`：查看菜品、关系边和向量数量。
+- `GET /api/v1/knowledge/dishes`：列出演示菜品。
+- `GET /api/v1/knowledge/dishes/{id}`：查看单道菜及其图谱关系。
+- `GET /api/v1/knowledge/search?q=低脂高蛋白&top_k=5`：本地向量召回。
+
+Agent 会优先调用 `search_dish_knowledge`，需要查看菜品关系时调用 `get_dish_graph`；本地图谱不足时才继续调用 Tavily。
+
 ## 技术栈
 
 | 模块 | 技术 |
 | --- | --- |
 | Agent 框架 | LangChain 1.0 `create_agent` |
 | 多模态模型 | 阿里百炼 `qwen3.5-plus`，OpenAI 兼容接口 |
-| 联网搜索 | Tavily `TavilySearch` |
+| 本地 RAG | SQLite + 本地 384 维哈希向量 + 菜品图谱 |
+| 联网搜索 | Tavily `TavilySearch`，本地图谱不足时使用 |
 | 会话记忆 | `langgraph-checkpoint-sqlite` |
 | 后端服务 | FastAPI + Uvicorn |
 | 前端页面 | HTML + CSS + 原生 JavaScript |
@@ -65,7 +88,8 @@ flowchart LR
     C -- 否 --> E[构造文本消息]
     D --> F[LangChain Agent]
     E --> F
-    F --> G[Tavily 搜索菜谱]
+    F --> R[SQLite 菜品图谱 RAG]
+    R --> G[Tavily 补充搜索]
     G --> H[营养与难度评分]
     H --> I[流式返回结构化建议]
     I --> J[前端实时展示]
@@ -97,6 +121,8 @@ chef_agent/
 │   │   └── logger.py                   # 日志配置
 │   ├── memory/
 │   │   └── store.py                    # 可选长期口味记忆与同意记录
+│   ├── rag/
+│   │   └── local_dish_graph.py         # SQLite 菜品节点、关系边和本地向量检索
 │   └── static/
 │       ├── index.html                  # 聊天页面与隐私设置面板
 │       ├── styles.css                  # 页面样式
@@ -104,7 +130,8 @@ chef_agent/
 │       └── uploads/                    # 本地开发上传目录
 ├── db/
 │   ├── personal_chief.db               # 会话 Checkpoint，自动生成
-│   └── user_memory.db                  # 长期记忆，自动生成且默认不启用
+│   ├── user_memory.db                  # 长期记忆，自动生成且默认不启用
+│   └── dish_knowledge.db               # 本地菜品图谱和向量表，自动生成
 ├── chef_agent.py                       # 兼容的命令行入口
 ├── langgraph.json                      # LangGraph 开发配置
 ├── pyproject.toml                      # uv / Python 项目配置

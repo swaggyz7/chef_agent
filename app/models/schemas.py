@@ -140,3 +140,71 @@ class MemoryDeleteResponse(BaseModel):
     success: bool = True
     deleted_preferences: int = 0
     deleted_consents: int = 0
+
+class KnowledgeStatsResponse(BaseModel):
+    """本地菜品图谱统计。"""
+
+    dish_count: int
+    edge_count: int
+    vector_count: int
+    dimensions: int
+    embedding_type: str
+    database: str
+
+
+class DishNode(BaseModel):
+    """菜品图谱节点。"""
+
+    id: int
+    name: str
+    cuisine: str
+    category: str
+    summary: str
+    ingredients: list[str] = Field(default_factory=list)
+    flavors: list[str] = Field(default_factory=list)
+    cooking_methods: list[str] = Field(default_factory=list)
+    dietary_tags: list[str] = Field(default_factory=list)
+    difficulty: str
+    source: str
+
+
+class DishEdge(BaseModel):
+    """菜品与图谱属性之间的关系边。"""
+
+    relation: str
+    target_type: str
+    target_value: str
+    weight: float
+
+
+class RelatedDish(BaseModel):
+    """通过共享图谱关系得到的相关菜品。"""
+
+    id: int
+    name: str
+    cuisine: str
+    shared_edges: int
+    weight: float
+
+
+class DishGraphResponse(DishNode):
+    """完整菜品图谱节点。"""
+
+    edges: list[DishEdge] = Field(default_factory=list)
+    related_dishes: list[RelatedDish] = Field(default_factory=list)
+
+
+class KnowledgeSearchHit(DishNode):
+    """本地向量召回结果。"""
+
+    score: float
+    edges: list[DishEdge] = Field(default_factory=list)
+    related_dishes: list[RelatedDish] = Field(default_factory=list)
+
+
+class KnowledgeSearchResponse(BaseModel):
+    """本地图谱检索响应。"""
+
+    query: str
+    top_k: int
+    results: list[KnowledgeSearchHit] = Field(default_factory=list)
